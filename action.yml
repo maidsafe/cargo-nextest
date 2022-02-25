@@ -1,0 +1,94 @@
+name: cargo-nextest
+description: >
+  Perform a test run using cargo nextest and upload the test report as an artifact. This action is
+  going to work under the assumption that the caller has already installed a Rust toolchain, as the
+  use case for it is alongside other uses of Cargo/Rust.
+inputs:
+  test-run-name:
+    description: >
+      The name to use for the test run, e.g. unit-test-ubuntu-latest. This will be the name of the
+      artifact with the test reports.
+    required: true
+  profile:
+    description: Name of the nextest profile to use.
+    required: true
+  junit-path:
+    description: Value of the Junit path attribute used in the nextest profile, e.g., junit.xml.
+    required: true
+  package:
+    description: Name of a crate to test. This is useful if your repository is a workspace.
+    required: false
+  filters:
+    description: >
+      Space separated list of particular test names to run. If not supplied, all tests will run.
+    required: false
+  release:
+    description: Test against code built in release mode.
+    required: false
+    default: false
+  features:
+    description: Space separated list of Cargo features to enable.
+    required: false
+  run-ignored:
+    description: Used to run ignored tests when that is desirable.
+    required: false
+    default: false
+  test-threads:
+    description: >
+      The number of test threads to be used. If not supplied, the nextest default will
+      be used, which is the number of logical CPUs.
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - uses: baptiste0928/cargo-install@v1
+      with:
+        crate: cargo-nextest
+    - name: create reports directory
+      shell: bash
+      env:
+        TEST_RUN_NAME: ${{ inputs.test-run-name }}
+      run: mkdir -p nextest-results/$TEST_RUN_NAME
+    - name: run nextest
+      shell: bash
+      env:
+        FEATURES: ${{ inputs.features }}
+        FILTERS: ${{ inputs.filters }}
+        PACKAGE: ${{ inputs.package }}
+        RELEASE: ${{ inputs.release }}
+        RUN_IGNORED: ${{ inputs.run-ignored }}
+        TEST_PROFILE: ${{ inputs.profile }}
+        TEST_THREADS: ${{ inputs.test-threads }}
+      run: |
+        command="cargo nextest run"
+        command="${command} --profile $TEST_PROFILE"
+        if [[ "$RELEASE" == "true" ]]; then command="${command} --release"; fi
+        if [[ "$RUN_IGNORED" == "true" ]]; then command="${command} --run-ignored ignored-only"; fi
+        if [[ -n "$FEATURES" ]]; then command="${command} --features $FEATURES"; fi
+        if [[ -n "$PACKAGE" ]]; then command="${command} --package $PACKAGE"; fi
+        if [[ -n "$TEST_THREADS" ]]; then command="${command} --test-threads $TEST_THREADS"; fi
+        if [[ -n "$FILTERS" ]]; then command="${command} $FILTERS"; fi
+        echo "Running nextest as: $command"
+        eval $command
+    - name: copy test reports
+      shell: bash
+      if: always()
+      env:
+        TEST_RUN_NAME: ${{ inputs.test-run-name }}
+        TEST_PROFILE: ${{ inputs.profile }}
+        JUNIT_PATH: ${{ inputs.junit-path }}
+      run: >
+        cp
+        target/nextest/$TEST_PROFILE/$JUNIT_PATH
+        nextest-results/$TEST_RUN_NAME/$TEST_RUN_NAME.xml
+    - name: upload test reports
+      uses: actions/upload-artifact@master
+      if: always()
+      with:
+        name: ${{ inputs.test-run-name }}
+        path: nextest-results
+
+branding:
+  icon: 'globe'
+  color: 'blue'
