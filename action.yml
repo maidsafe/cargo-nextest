@@ -18,6 +18,9 @@ inputs:
   package:
     description: Name of a crate to test. This is useful if your repository is a workspace.
     required: false
+  bin:
+    description: Use to specify running tests in a certain binary.
+    required: false
   filters:
     description: >
       Space separated list of particular test names to run. If not supplied, all tests will run.
@@ -58,6 +61,7 @@ runs:
         PACKAGE: ${{ inputs.package }}
         RELEASE: ${{ inputs.release }}
         RUN_IGNORED: ${{ inputs.run-ignored }}
+        TEST_BIN: ${{ inputs.bin }}
         TEST_PROFILE: ${{ inputs.profile }}
         TEST_THREADS: ${{ inputs.test-threads }}
       run: |
@@ -68,6 +72,7 @@ runs:
         if [[ -n "$FEATURES" ]]; then command="${command} --features $FEATURES"; fi
         if [[ -n "$PACKAGE" ]]; then command="${command} --package $PACKAGE"; fi
         if [[ -n "$TEST_THREADS" ]]; then command="${command} --test-threads $TEST_THREADS"; fi
+        if [[ -n "$TEST_BIN" ]]; then command="${command} --bin $TEST_BIN"; fi
         if [[ -n "$FILTERS" ]]; then command="${command} $FILTERS"; fi
         echo "Running nextest as: $command"
         eval $command
