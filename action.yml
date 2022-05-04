@@ -4,38 +4,43 @@ description: >
   going to work under the assumption that the caller has already installed a Rust toolchain, as the
   use case for it is alongside other uses of Cargo/Rust.
 inputs:
-  test-run-name:
+  bin:
+    description: Use to specify running tests in a certain binary.
+    required: false
+  features:
+    description: Space separated list of Cargo features to enable.
+    required: false
+  filters:
     description: >
-      The name to use for the test run, e.g. unit-test-ubuntu-latest. This will be the name of the
-      artifact with the test reports.
-    required: true
-  profile:
-    description: Name of the nextest profile to use.
-    required: true
+      Space separated list of particular test names to run. If not supplied, all tests will run.
+    required: false
   junit-path:
     description: Value of the Junit path attribute used in the nextest profile, e.g., junit.xml.
     required: true
   package:
     description: Name of a crate to test. This is useful if your repository is a workspace.
     required: false
-  bin:
-    description: Use to specify running tests in a certain binary.
-    required: false
-  filters:
-    description: >
-      Space separated list of particular test names to run. If not supplied, all tests will run.
-    required: false
+  profile:
+    description: Name of the nextest profile to use.
+    required: true
   release:
     description: Test against code built in release mode.
     required: false
     default: false
-  features:
-    description: Space separated list of Cargo features to enable.
+  retries:
+    description: >
+      The number of retries to use for failed tests. If not supplied, this will default to the value
+      specified in the profile.
     required: false
   run-ignored:
     description: Used to run ignored tests when that is desirable.
     required: false
     default: false
+  test-run-name:
+    description: >
+      The name to use for the test run, e.g. unit-test-ubuntu-latest. This will be the name of the
+      artifact with the test reports.
+    required: true
   test-threads:
     description: >
       The number of test threads to be used. If not supplied, the nextest default will
@@ -60,6 +65,7 @@ runs:
         FILTERS: ${{ inputs.filters }}
         PACKAGE: ${{ inputs.package }}
         RELEASE: ${{ inputs.release }}
+        RETRIES: ${{ inputs.retries }}
         RUN_IGNORED: ${{ inputs.run-ignored }}
         TEST_BIN: ${{ inputs.bin }}
         TEST_PROFILE: ${{ inputs.profile }}
@@ -73,6 +79,7 @@ runs:
         if [[ -n "$PACKAGE" ]]; then command="${command} --package $PACKAGE"; fi
         if [[ -n "$TEST_THREADS" ]]; then command="${command} --test-threads $TEST_THREADS"; fi
         if [[ -n "$TEST_BIN" ]]; then command="${command} --bin $TEST_BIN"; fi
+        if [[ -n "$RETRIES" ]]; then command="${command} --retries $RETRIES"; fi
         if [[ -n "$FILTERS" ]]; then command="${command} $FILTERS"; fi
         echo "Running nextest as: $command"
         eval $command
